@@ -1,0 +1,16 @@
+.pytest_cache
+.venv
+htmlcov
+.coverage
+coverage.xml
+__pycache__
+*.log
+*.egg-info
+dist
+build
+*.sh
+docs/
+*.log.*
+*.json
+.pdm-python
+.pdm-build
