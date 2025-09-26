@@ -18,38 +18,6 @@ config_schema = {
     "required": ["migration_procedures"],
     "description": "Configuration file for migration procedure",
     "properties": {
-        "log": {
-            "type": "object",
-            "description": "Log definition",
-            "properties": {
-                "logging_level": {
-                    "type": "string",
-                    "description": "log level",
-                    "enum": ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"],
-                },
-                "log_dir": {
-                    "type": "string",
-                    "description": "log directory",
-                },
-                "file": {
-                    "type": "string",
-                    "description": "log file name",
-                },
-                "rotation_size": {
-                    "type": "integer",
-                    "description": "log directory",
-                },
-                "backup_files": {
-                    "type": "integer",
-                    "description": "log file backup",
-                },
-                "stdout": {
-                    "type": "boolean",
-                    "description": "Log output will be displayed when true is specified, \
-                    and also printed to the standard output.",
-                },
-            },
-        },
         "migration_procedures": {
             "type": "object",
             "description": "Waiting setup for the API",
@@ -64,6 +32,71 @@ config_schema = {
                     "description": "Port number to be used for the waiting process",
                 },
             },
+        },
+    },
+}
+
+log_config_schema = {
+    "type": "object",
+    "required": ["version", "formatters", "handlers", "root"],
+    "properties": {
+        "version": {"type": "integer"},
+        "formatters": {
+            "type": "object",
+            "properties": {
+                "standard": {
+                    "type": "object",
+                    "properties": {"format": {"type": "string"}, "datefmt": {"type": "string"}},
+                    "required": ["format", "datefmt"],
+                }
+            },
+            "required": ["standard"],
+        },
+        "handlers": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "object",
+                    "properties": {
+                        "class": {"type": "string"},
+                        "level": {
+                            "type": "string",
+                            "enum": ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"],
+                        },
+                        "formatter": {"type": "string"},
+                        "filename": {"type": "string"},
+                        "maxBytes": {"type": "integer"},
+                        "backupCount": {"type": "integer"},
+                        "encoding": {"type": "string"},
+                    },
+                    "required": ["class", "formatter", "filename", "maxBytes", "backupCount"],
+                },
+                "console": {
+                    "type": "object",
+                    "properties": {
+                        "class": {"type": "string"},
+                        "level": {
+                            "type": "string",
+                            "enum": ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"],
+                        },
+                        "formatter": {"type": "string"},
+                        "stream": {"type": "string"},
+                    },
+                    "required": ["class", "formatter", "stream"],
+                },
+            },
+            "required": ["file"],
+        },
+        "root": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "enum": ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"],
+                },
+                "handlers": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["level", "handlers"],
         },
     },
 }
@@ -102,7 +135,7 @@ layout_schema = {
                             },
                         },
                         "patternProperties": {
-                            "^(.+)$": {
+                            "^[0-9a-zA-Z]+$": {
                                 "type": "object",
                                 "required": ["deviceIDs"],
                                 "properties": {
@@ -126,14 +159,16 @@ layout_schema = {
                     "type": "object",
                     "description": "device infomation",
                     "patternProperties": {
-                        "^(.+)$": {
+                        "^[0-9a-zA-Z]+$": {
                             "type": "array",
                             "description": "nonRemovable device ID",
                             "items": {"type": "string"},
                         },
                     },
+                    "additionalProperties": False,
                 },
             },
+            "additionalProperties": False,
         },
     },
 }

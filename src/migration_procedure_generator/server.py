@@ -26,6 +26,7 @@ from migration_procedure_generator.custom_exception import (
     JsonSchemaError,
     RequestError,
     SettingFileValidationError,
+    LogSettingFileValidationError,
     LogInitializationError,
 )
 from migration_procedure_generator.model import NodeLayout
@@ -35,6 +36,10 @@ from migration_procedure_generator.system import System
 
 app = FastAPI()
 BASEURL = "/cdim/api/v1/"
+JSON_RESPONSE_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Content-Type": "application/json; charset=utf-8",
+}
 
 
 # Avoid CORS
@@ -57,6 +62,7 @@ def validate_request_handler(_, exc: RequestValidationError):
     return JSONResponse(
         content=request_error.response_msg,
         status_code=HTTPStatus.BAD_REQUEST.value,
+        headers=JSON_RESPONSE_HEADERS,
     )
 
 
@@ -68,6 +74,7 @@ def jsonschema_validation_handler(_, exc: JsonSchemaError):
     return JSONResponse(
         content=exc.response_msg,
         status_code=HTTPStatus.BAD_REQUEST.value,
+        headers=JSON_RESPONSE_HEADERS,
     )
 
 
@@ -77,6 +84,17 @@ def setting_validation_handler(_, exc: SettingFileValidationError):
     return JSONResponse(
         content=exc.response_msg,
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+        headers=JSON_RESPONSE_HEADERS,
+    )
+
+
+@app.exception_handler(LogSettingFileValidationError)
+def log_setting_validation_handler(_, exc: LogSettingFileValidationError):
+    """Return an error code and message if an error occurs in the configuration file."""
+    return JSONResponse(
+        content=exc.response_msg,
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+        headers=JSON_RESPONSE_HEADERS,
     )
 
 
@@ -86,6 +104,7 @@ def log_initialization_failed_handler(_, exc: LogInitializationError):
     return JSONResponse(
         content=exc.response_msg,
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+        headers=JSON_RESPONSE_HEADERS,
     )
 
 
@@ -95,7 +114,7 @@ def _initialize_ope_id():
 
 
 @app.post(BASEURL + "migration-procedures", response_class=JSONResponse)
-def create_migration_procedure(nodelayout: NodeLayout, background_tasks: BackgroundTasks):  # pylint: disable=C0103
+def create_migration_procedure(nodelayout: NodeLayout, background_tasks: BackgroundTasks):
     """Creating a migration procedure
 
     Args:
@@ -113,7 +132,11 @@ def create_migration_procedure(nodelayout: NodeLayout, background_tasks: Backgro
         prev=System.decode_json(nodelayout.currentLayout, bound_devices_map),
         new=System.decode_json(nodelayout.desiredLayout, bound_devices_map),
     )
-    response = JSONResponse(status_code=HTTPStatus.OK.value, content=procedures.encode_json())
+    response = JSONResponse(
+        status_code=HTTPStatus.OK.value,
+        content=procedures.encode_json(),
+        headers=JSON_RESPONSE_HEADERS,
+    )
     background_tasks.add_task(_initialize_ope_id)
     logger.info("Completed successfully")
     return response

@@ -18,26 +18,27 @@ import os
 from jsonschema import validate
 from migration_procedure_generator.common.config import BaseConfig
 
-from migration_procedure_generator.cdimlogger import Logger
-from migration_procedure_generator.cdimlogger.common import CRITICAL, DEBUG, ERROR, INFO, TAG_APP_POLICY, WARN
-from migration_procedure_generator.custom_exception import LogInitializationError, SettingFileValidationError
-from migration_procedure_generator.schema import config_schema
+from migration_procedure_generator.custom_exception import (
+    LogInitializationError,
+    SettingFileValidationError,
+    LogSettingFileValidationError,
+)
+from migration_procedure_generator.schema import config_schema, log_config_schema
+from migration_procedure_generator.common.logger import Logger
 
 
-class MigrationConfigReader(BaseConfig):
-    """A class to read configuration files"""
-
-    def __init__(self) -> None:
+class MigrationLogConfigReader(BaseConfig):
+    """A class to read logging configuration files"""
+    def __init__(self):
         """constructor"""
         try:
-            super().__init__("migration_procedure_generator.config", "migrationprocedures_config.yaml")
-
-            log_dir = self.log_config.get("log_dir", None)
-            if log_dir:
-                self._check_directory_exists(log_dir)
-            validate(self._config, config_schema)
+            super().__init__("migration_procedure_generator.config", "migrationprocedures_log_config.yaml")
+            validate(self._config, log_config_schema)
+            filename = self._config.get("handlers", {}).get("file", {}).get("filename")
+            log_dir = os.path.dirname(filename)
+            self._check_directory_exists(log_dir)
         except Exception as error:
-            raise SettingFileValidationError(error.args) from error
+            raise LogSettingFileValidationError(error.args) from error
 
     def _check_directory_exists(self, path: str) -> None:
         """Checking if a directory exists
@@ -58,7 +59,20 @@ class MigrationConfigReader(BaseConfig):
         Returns:
             dict: read config date
         """
-        return self._config.get("log")
+        return self._config
+
+
+class MigrationConfigReader(BaseConfig):
+    """A class to read configuration files"""
+
+    def __init__(self) -> None:
+        """constructor"""
+        try:
+            super().__init__("migration_procedure_generator.config", "migrationprocedures_config.yaml")
+            validate(self._config, config_schema)
+
+        except Exception as error:
+            raise SettingFileValidationError(error.args) from error
 
     @property
     def migration_procedures_config(self) -> dict:
@@ -76,30 +90,10 @@ def initialize_log() -> Logger:
     Returns:
         Logger: Logger Object
     """
-    log_config = MigrationConfigReader().log_config
-
-    match log_config.get("logging_level", INFO).upper():
-        case "DEBUG":
-            LOGGING_LVL = DEBUG  # pylint: disable=C0103
-        case "WARN":
-            LOGGING_LVL = WARN  # pylint: disable=C0103
-        case "ERROR":
-            LOGGING_LVL = ERROR  # pylint: disable=C0103
-        case "CRITICAL":
-            LOGGING_LVL = CRITICAL  # pylint: disable=C0103
-        case _:
-            LOGGING_LVL = INFO  # pylint: disable=C0103
+    log_config = MigrationLogConfigReader().log_config
 
     try:
-        logger = Logger(
-            tag=TAG_APP_POLICY,
-            log_dir=log_config.get("log_dir", ""),
-            log_file=log_config.get("file", ""),
-            logging_level=LOGGING_LVL,
-            stdout=log_config.get("stdout", ""),
-            rotation_size=log_config.get("rotation_size", ""),
-            backup_files=log_config.get("backup_files", False),
-        )
+        logger = Logger(log_config)
     except Exception as err:
         raise LogInitializationError() from err
     return logger

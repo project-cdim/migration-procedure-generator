@@ -22,8 +22,8 @@ import yaml
 
 from migration_procedure_generator.core import ExitCode, main
 from migration_procedure_generator.plan import Task
-from migration_procedure_generator.setting import MigrationConfigReader
-
+from migration_procedure_generator.setting import MigrationConfigReader, MigrationLogConfigReader
+from migration_procedure_generator.custom_exception import SettingFileValidationError
 
 @pytest.fixture(scope="function", autouse=True)
 def initializetask():
@@ -479,28 +479,43 @@ class TestMain:
             main()
         _, err = capfd.readouterr()
         assert excinfo.value.code == 2
-        assert "[E50005]Failed to load migrationprocedures_config.yaml\n" in err
+        assert "[E50005]Failed to load migrationprocedures_log_config.yaml\n" in err
 
     def test_main_failed_when_log_initialization_error(
         self, mocker, capfd, get_tmp_oneNode_json_file, get_tmp_Empty_json_file
     ):
         """abnormal system testing"""
         config = {
-            "log": {
-                "logging_level": "INFO",
-                "log_dir": "log_initialization_failed",
-                "file": "app_migration_procedures.log",
-                "rotation_size": 1000000,
-                "backup_files": 3,
-                "stdout": False,
-            },
-            "migration_procedures": {
-                "host": "0.0.0.0",
-                "port": 8010,
-            },
-        }
+                        'version': 1,
+                        'formatters': {
+                            'standard': {
+                                'format': "%(asctime)s %(levelname)s %(message)s",
+                                'datefmt': "%Y/%m/%d %H:%M:%S.%f"
+                            }
+                        },
+                        'handlers': {
+                            'file': {
+                                'class': 'logging.handlers.RotatingFileHandler',
+                                'level': 'INFO',
+                                'formatter': 'standard',
+                                'filename': '/var/log/midc/app_migration_procedures.log',
+                                'maxBytes': 100000000,
+                                'backupCount': 72,
+                            },
+                            'console': {
+                                'class': 'logging.StreamHandler',
+                                'level': 'INFO',
+                                'formatter': 'standard',
+                                'stream': 'ext://sys.stdout'
+                            }
+                        },
+                        'root': {
+                            'level': 'INFO',
+                            'handlers': ['file']
+                        }
+            }
         mocker.patch("yaml.safe_load").return_value = config
-        mocker.patch.object(MigrationConfigReader, "_check_directory_exists")
+        mocker.patch.object(MigrationLogConfigReader, "_check_directory_exists")
         sys.argv = ["core.py", "--prev", get_tmp_oneNode_json_file, "--new", get_tmp_Empty_json_file]
         with pytest.raises(SystemExit) as e:
             main()

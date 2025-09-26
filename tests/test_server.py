@@ -16,10 +16,10 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from migration_procedure_generator.custom_exception import SettingFileValidationError
+from migration_procedure_generator.custom_exception import SettingFileValidationError, LogSettingFileValidationError
 from migration_procedure_generator.plan import Task
 from migration_procedure_generator.server import app, main
-from migration_procedure_generator.setting import MigrationConfigReader
+from migration_procedure_generator.setting import MigrationConfigReader, MigrationLogConfigReader
 
 client = TestClient(app)
 BASEURL = "/cdim/api/v1/"
@@ -43,7 +43,7 @@ class TestCreateMigrationProcedure:
                             {
                                 "device": {
                                     "cpu": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
-                                    "memory": {
+                                    "memory1": {
                                         "deviceIDs": [
                                             "895DFB43-68CD-41D6-8996-EAC8D1EA1E3F",
                                         ]
@@ -57,12 +57,12 @@ class TestCreateMigrationProcedure:
                             {
                                 "device": {
                                     "cpu": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
-                                    "memory": {
+                                    "memory1": {
                                         "deviceIDs": [
                                             "895DFB43-68CD-41D6-8996-EAC8D1EA1E3F",
                                         ]
                                     },
-                                    "storage": {"deviceIDs": ["2CA6D4DF-2739-45BA-ACA4-6ABE93E81E15"]},
+                                    "storage1": {"deviceIDs": ["2CA6D4DF-2739-45BA-ACA4-6ABE93E81E15"]},
                                 }
                             }
                         ]
@@ -938,9 +938,9 @@ class TestCreateMigrationProcedure:
                                 "device": {
                                     "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
                                     "memory": {"deviceIDs": ["55834ea0-bade-4ce0-89e0-c9fbc0ea7617"]},
-                                    "storage": {"deviceIDs": ["7fd3301f-9a1d-4652-86d6-1fa84cf55f5b"]},
+                                    "storage1234567890": {"deviceIDs": ["7fd3301f-9a1d-4652-86d6-1fa84cf55f5b"]},
                                     "networkInterface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
-                                    "gpu": {"deviceIDs": ["06ebec09-553a-462e-96f9-f58909180428"]},
+                                    "gpu1234567890": {"deviceIDs": ["06ebec09-553a-462e-96f9-f58909180428"]},
                                 }
                             }
                         ]
@@ -950,16 +950,16 @@ class TestCreateMigrationProcedure:
                             {
                                 "device": {
                                     "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
-                                    "storage": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
+                                    "storage1234567890": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
                                 }
                             }
                         ],
                         "boundDevices": {
                             "b477ea1c-db3d-48b3-9725-b0ce6e25efc2": {
                                 "memory": ["55834ea0-bade-4ce0-89e0-c9fbc0ea7617"],
-                                "storage": ["7fd3301f-9a1d-4652-86d6-1fa84cf55f5b"],
+                                "storage1234567890": ["7fd3301f-9a1d-4652-86d6-1fa84cf55f5b"],
                                 "networkInterface": ["8190c071-3f5f-4862-b741-b42591ac51fc"],
-                                "gpu": ["06ebec09-553a-462e-96f9-f58909180428"],
+                                "gpu1234567890": ["06ebec09-553a-462e-96f9-f58909180428"],
                             }
                         },
                     },
@@ -994,6 +994,8 @@ class TestCreateMigrationProcedure:
         content = json.loads(response.content.decode())
         assert response.status_code == 200
         assert content == current_list
+        assert response.charset_encoding == "utf-8"
+        assert response.headers.get("X-Content-Type-Options") == "nosniff"
 
     @pytest.mark.parametrize(
         "params,msg",
@@ -1740,6 +1742,93 @@ class TestCreateMigrationProcedure:
                 },
                 "{'deciesIDs': ['895DFB43-68CD-41D6-8996-EAC8D1EA1E3F']} is not of type 'array'",
             ),
+            (
+                {
+                    "currentLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "networkInterface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
+                                    "network-Interface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
+                                }
+                            }
+                        ]
+                    },
+                    "desiredLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "storage": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
+                                }
+                            }
+                        ],
+                    },
+                },
+                "'network-interface' does not match any of the regexes: '^[0-9a-zA-Z]+$'",
+            ),
+            (
+                {
+                    "currentLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "networkInterface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
+                                }
+                            }
+                        ]
+                    },
+                    "desiredLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "storage": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
+                                    "network-Interface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
+                                }
+                            }
+                        ],
+                    },
+                },
+                "'network-interface' does not match any of the regexes: '^[0-9a-zA-Z]+$'",
+            ),
+            (
+                {
+                    "currentLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "memory": {"deviceIDs": ["55834ea0-bade-4ce0-89e0-c9fbc0ea7617"]},
+                                    "storage": {"deviceIDs": ["7fd3301f-9a1d-4652-86d6-1fa84cf55f5b"]},
+                                    "networkInterface": {"deviceIDs": ["8190c071-3f5f-4862-b741-b42591ac51fc"]},
+                                    "gpu": {"deviceIDs": ["06ebec09-553a-462e-96f9-f58909180428"]},
+                                }
+                            }
+                        ]
+                    },
+                    "desiredLayout": {
+                        "nodes": [
+                            {
+                                "device": {
+                                    "cpu": {"deviceIDs": ["b477ea1c-db3d-48b3-9725-b0ce6e25efc2"]},
+                                    "storage": {"deviceIDs": ["ABA3E4EB-8C5B-E46D-8D62-C272DD8AF8FA"]},
+                                }
+                            }
+                        ],
+                        "boundDevices": {
+                            "b477ea1c-db3d-48b3-9725-b0ce6e25efc2": {
+                                "memory": ["895DFB43-68CD-41D6-8996-EAC8D1EA1E3F"],
+                                "networkInterface": ["895DFB43-68CD-41D6-8996-EAC8D1EA1E3F"],
+                                "network-Interface": ["895DFB43-68CD-41D6-8996-EAC8D1EA1E3F"],
+                            }
+                        },
+                    },
+                },
+                "'network-interface' does not match any of the regexes: '^[0-9a-zA-Z]+$'",
+            ),
         ],
     )
     def test_create_migration_procedure_failure_when_validation_error(self, params, msg):
@@ -1789,20 +1878,20 @@ class TestCreateMigrationProcedure:
         assert "body" in response.content.decode()
         assert "E50001" in response.content.decode()
 
-    def test_create_migration_procedure__failure_when_config_error_log_none(self, mocker):
+    def test_create_migration_procedure_failure_when_config_error_log_none(self, mocker):
 
         params = {
             "currentLayout": {"nodes": []},
             "desiredLayout": {"nodes": []},
         }
-        mocker.patch("migration_procedure_generator.server.initialize_log").side_effect = SettingFileValidationError(
+        mocker.patch("migration_procedure_generator.server.initialize_log").side_effect = LogSettingFileValidationError(
             "Dummy message"
         )
         response = client.post(BASEURL + "migration-procedures", json=params)
         content = json.loads(response.content.decode())
         assert response.status_code == 500
         assert "E50005" in content.get("code")
-        assert "Failed to load migrationprocedures_config.yaml\nDummy message" in content.get("message")
+        assert "Failed to load migrationprocedures_log_config.yaml\nDummy message" in content.get("message")
 
     def test_create_migration_procedure_failure_when_config_error_calllog(self, mocker):
 
@@ -1823,21 +1912,36 @@ class TestCreateMigrationProcedure:
     def test_create_migration_procedure_failure_when_log_initialization_error_calllog(self, mocker):
         """abnormal system testing"""
         config = {
-            "log": {
-                "logging_level": "INFO",
-                "log_dir": "log_initialization_error",
-                "file": "app_migration_procedures.log",
-                "rotation_size": 1000000,
-                "backup_files": 3,
-                "stdout": False,
-            },
-            "migration_procedures": {
-                "host": "0.0.0.0",
-                "port": 8010,
-            },
+                'version': 1,
+                'formatters': {
+                    'standard': {
+                        'format': "%(asctime)s %(levelname)s %(message)s",
+                        'datefmt': "%Y/%m/%d %H:%M:%S.%f"
+                    }
+                },
+                'handlers': {
+                    'file': {
+                        'class': 'logging.handlers.RotatingFileHandler',
+                        'level': 'INFO',
+                        'formatter': 'standard',
+                        'filename': 'internal_server_error/app_layout_apply.log',
+                        'maxBytes': 100000000,
+                        'backupCount': 72,
+                    },
+                    'console': {
+                        'class': 'logging.StreamHandler',
+                        'level': 'INFO',
+                        'formatter': 'standard',
+                        'stream': 'ext://sys.stdout'
+                    }
+                },
+                'root': {
+                    'level': 'INFO',
+                    'handlers': ['file']
+                }
         }
         mocker.patch("yaml.safe_load").return_value = config
-        mocker.patch.object(MigrationConfigReader, "_check_directory_exists")
+        mocker.patch.object(MigrationLogConfigReader, "_check_directory_exists")
         params = {
             "currentLayout": {"nodes": []},
             "desiredLayout": {"nodes": []},
@@ -2052,7 +2156,7 @@ class TestCreateMigrationProcedure:
 
 
 class TestMain:
-    def test_main_failure_when_initialize_log_failed(self, mocker, capfd):
+    def test_main_failure_when_load_config_file(self, mocker, capfd):
         mocker.patch(
             "migration_procedure_generator.server.MigrationConfigReader",
             side_effect=SettingFileValidationError("Failed to load migrationprocedures_config.yaml"),

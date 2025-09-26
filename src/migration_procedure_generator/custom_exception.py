@@ -50,6 +50,28 @@ class SettingFileValidationError(CustomBaseException):
         print(f"[E50005]{self.message}", file=sys.stderr)
 
     @property
+    def response_msg(self) -> dict:
+        """Return a response message"""
+        return {"code": "E50005", "message": self.message}
+
+
+class LogSettingFileValidationError(CustomBaseException):
+    """Configuration File Error Class"""
+
+    def __init__(self, message):
+        """constructor
+
+        Args:
+            message (str): Location of error occurrence
+        """
+        super().__init__(message)
+        self.message = f"Failed to load migrationprocedures_log_config.yaml\n{message}"
+
+    def output_stderr(self) -> None:
+        """Print messages for CLI"""
+        print(f"[E50005]{self.message}", file=sys.stderr)
+
+    @property
     def exit_code(self) -> int:
         """Retrieve ExitCode"""
         return ExitCode.CONFIG_ERROR
