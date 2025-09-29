@@ -146,7 +146,6 @@ class TestTask:
         )
         assert task_boot_cpu1 != 1
         assert task_boot_cpu1 != task_boot_cpu2
-        assert task_boot_cpu1 == task_boot_cpu1
         assert task_boot_cpu1 < task_boot_cpu2
 
 

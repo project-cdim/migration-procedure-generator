@@ -2168,7 +2168,7 @@ class TestMain:
     def test_main_when_no_traceback_desired_server(self, mocker):
         mockup = mocker.patch("migration_procedure_generator.server.uvicorn.run", side_effect=KeyboardInterrupt)
 
-        # テスト実行
+        # Test execution
         main()
 
         assert mockup.call_count == 1
